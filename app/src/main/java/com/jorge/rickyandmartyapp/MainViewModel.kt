@@ -1,5 +1,6 @@
 package com.jorge.rickyandmartyapp
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jorge.rickyandmartyapp.domain.model.CharacterInfo
@@ -27,26 +28,29 @@ class MainViewModel @Inject constructor(
 
     fun loadCharacters(page: Int) {
         viewModelScope.launch {
+            Log.d("MainViewModel", "Loading characters for page: $page")
             _charactersState.value = CharactersState(isLoading = true) // Estado de carga
 
             getCharacterUseCase(page)
                 .catch { exception ->
+                    Log.e("MainViewModel", "Error fetching characters: ${exception.message}")
                     _charactersState.value = CharactersState(
                         isLoading = false,
                         error = exception.message
                     )
                 }
                 .collect { result ->
-                    _charactersState.value = when {
-                        result.isSuccess -> {
-                            val (characters, pages) = result.getOrNull() ?: Pair(emptyList(), null)
-                            CharactersState(
-                                characters = characters,
-                                pages = pages,
-                                isLoading = false
-                            )
-                        }
-                        else -> CharactersState(
+                    if (result.isSuccess) {
+                        val (characters, pages) = result.getOrNull() ?: Pair(emptyList(), null)
+                        Log.d("MainViewModel", "Characters loaded: ${characters.size}, nextPage: ${pages?.nextPage}")
+                        _charactersState.value = CharactersState(
+                            characters = characters,
+                            pages = pages,
+                            isLoading = false
+                        )
+                    } else {
+                        Log.e("MainViewModel", "Error loading characters: ${result.exceptionOrNull()?.message}")
+                        _charactersState.value = CharactersState(
                             isLoading = false,
                             error = result.exceptionOrNull()?.message
                         )
