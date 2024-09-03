@@ -1,0 +1,1 @@
+Jetpack Compose para las vistas, Apollo GraphQL para las consultas de datos, Navigation Component para la navegación, StateFlow en los ViewModel para gestionar el estado, y Hilt para la inyección de dependencias.
