@@ -1,6 +1,5 @@
-package com.jorge.rickyandmartyapp
+package com.jorge.rickyandmartyapp.ui.main
 
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jorge.rickyandmartyapp.domain.model.CharacterInfo
@@ -11,6 +10,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -18,8 +18,7 @@ import javax.inject.Inject
 class MainViewModel @Inject constructor(
     private val getCharacterUseCase: getCharacterUseCase
 ) : ViewModel() {
-
-    private val _charactersState = MutableStateFlow(CharactersState(isLoading = true))
+    private val _charactersState = MutableStateFlow(CharactersState())
     val charactersState: StateFlow<CharactersState> = _charactersState.asStateFlow()
 
     init {
@@ -28,32 +27,33 @@ class MainViewModel @Inject constructor(
 
     fun loadCharacters(page: Int) {
         viewModelScope.launch {
-            Log.d("MainViewModel", "Loading characters for page: $page")
-            _charactersState.value = CharactersState(isLoading = true) // Estado de carga
-
+            _charactersState.update { it.copy(isLoading = true) }
             getCharacterUseCase(page)
                 .catch { exception ->
-                    Log.e("MainViewModel", "Error fetching characters: ${exception.message}")
-                    _charactersState.value = CharactersState(
-                        isLoading = false,
-                        error = exception.message
-                    )
+                    _charactersState.update {
+                        it.copy(
+                            isLoading = false,
+                            error = exception.message
+                        )
+                    }
                 }
                 .collect { result ->
                     if (result.isSuccess) {
                         val (characters, pages) = result.getOrNull() ?: Pair(emptyList(), null)
-                        Log.d("MainViewModel", "Characters loaded: ${characters.size}, nextPage: ${pages?.nextPage}")
-                        _charactersState.value = CharactersState(
-                            characters = characters,
-                            pages = pages,
-                            isLoading = false
-                        )
+                        _charactersState.update { currentState ->
+                            currentState.copy(
+                                characters = currentState.characters + characters,
+                                pages = pages,
+                                isLoading = false
+                            )
+                        }
                     } else {
-                        Log.e("MainViewModel", "Error loading characters: ${result.exceptionOrNull()?.message}")
-                        _charactersState.value = CharactersState(
-                            isLoading = false,
-                            error = result.exceptionOrNull()?.message
-                        )
+                        _charactersState.update {
+                            it.copy(
+                                isLoading = false,
+                                error = result.exceptionOrNull()?.message
+                            )
+                        }
                     }
                 }
         }
